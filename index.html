@@ -116,6 +116,15 @@
   let preloadedVideo;
   let preloadedAudio;
 
+  // ===== FULLSCREEN REAL (tipo YouTube) =====
+  fsVideo.addEventListener('click', () => {
+  if (fsVideo.requestFullscreen) {
+    fsVideo.requestFullscreen();
+  } else if (fsVideo.webkitEnterFullscreen) {
+    fsVideo.webkitEnterFullscreen(); // iOS
+  }
+  });
+
   // ========= CLICK INICIAR =========
   startBtn.addEventListener('click', () => {
     audioUnlocked = true;
@@ -158,21 +167,37 @@
   });
 
   // ========= CIERRE =========
+  
   function stopVideo() {
-    fsVideo.pause();
-    fsVideo.currentTime = 0;
-    fsContainer.style.display = 'none';
+  if (!isPlaying) return;
 
-    preloadedAudio.pause();
-    preloadedAudio.currentTime = 0;
+  // Detiene video
+  fsVideo.pause();
+  fsVideo.currentTime = 0;
 
-    document
-      .querySelector('a-scene')
-      .systems['mindar-image-system']
-      .resume();
+  // Limpieza extra (iOS / memoria)
+  fsVideo.removeAttribute('src');
+  fsVideo.load();
 
-    isPlaying = false;
-  }
+  fsContainer.style.display = 'none';
+
+  // Detiene audio
+  preloadedAudio.pause();
+  preloadedAudio.currentTime = 0;
+
+  // Reinicia MindAR
+  const mindarSystem =
+    document.querySelector('a-scene').systems['mindar-image-system'];
+
+  mindarSystem.stop();
+
+  setTimeout(() => {
+    mindarSystem.start();
+  }, 300);
+
+  isPlaying = false;
+}
+
 
   fsVideo.addEventListener('ended', stopVideo);
   closeBtn.addEventListener('click', stopVideo);
@@ -180,3 +205,4 @@
 
 </body>
 </html>
+
