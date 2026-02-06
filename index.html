@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -30,34 +29,39 @@
       z-index: 9999;
     }
 
-    #startOverlay h1 {
-      font-size: 32px;
-      margin: 0;
-      letter-spacing: 2px;
-    }
-
-    #startOverlay h2 {
-      margin: 10px 0 30px;
-      font-size: 20px;
-      font-weight: normal;
-    }
-
     #startBtn {
       padding: 14px 32px;
       font-size: 18px;
       border-radius: 30px;
       border: none;
       background: #fff;
-      color: #000;
       cursor: pointer;
     }
 
-    #footerBrand {
+    #videoFullscreen {
+      position: fixed;
+      inset: 0;
+      background: black;
+      display: none;
+      z-index: 9998;
+    }
+
+    #videoFullscreen video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    #closeVideo {
       position: absolute;
-      bottom: 25px;
-      font-size: 12px;
-      opacity: 0.8;
-      line-height: 1.4;
+      top: 20px;
+      right: 20px;
+      font-size: 22px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 50%;
     }
   </style>
 </head>
@@ -68,79 +72,110 @@
 <div id="startOverlay">
   <h1>Mis 15 Años</h1>
   <h2>Mia Meiyin</h2>
-
   <button id="startBtn">▶ Iniciar</button>
+</div>
 
-  <div id="footerBrand">
-    PRODUCCIONES RUIZ<br>
-    Fotografía & Video
-  </div>
+<!-- ================= VIDEO FULLSCREEN ================= -->
+<div id="videoFullscreen">
+  <video id="fsVideo" playsinline></video>
+  <button id="closeVideo">✕</button>
 </div>
 
 <a-scene
-  mindar-image="imageTargetSrc: targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 3; missTolerance: 5;"
+  mindar-image="imageTargetSrc: targets.mind;"
   vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false"
->
+  device-orientation-permission-ui="enabled: false">
 
-  <a-assets>
-    <!-- ================= VIDEOS ================= -->
-    <!-- ALUMNOS 01 - 25 -->
-    <video id="video01" src="videos/video01.mp4" loop playsinline></video>
-    <video id="video02" src="videos/video01.mp4" loop playsinline></video>
-      
-
-    <!-- ================= AUDIOS ================= -->
-    <audio id="audio01" src="audios/video01.mp3"></audio>
-    <audio id="audio02" src="audios/video01.mp3"></audio>
-    
-    
-  </a-assets>
-
-  <!-- ================= BLOQUES DE TARGET ================= -->
-
-  <!-- ALUMNO 01 -->
-  <a-entity mindar-image-target="targetIndex: 0" data-video="video01" data-audio="audio01">
-    <a-video src="#video01" width="1" height="0.56" material="shader: flat"></a-video>
+  <!-- Target SOLO como disparador -->
+  <a-entity
+    mindar-image-target="targetIndex: 0"
+    data-video="videos/video01.mp4"
+    data-audio="audios/video01.mp3">
   </a-entity>
 
-  <!-- ALUMNO 02 -->
-  <a-entity mindar-image-target="targetIndex: 1" data-video="video02" data-audio="audio02">
-    <a-video src="#video02" width="1" height="0.56" material="shader: flat"></a-video>
-  </a-entity>  
+  <a-entity
+    mindar-image-target="targetIndex: 1"
+    data-video="videos/video01.mp4"
+    data-audio="audios/video01.mp3">
+  </a-entity>
 
-  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-camera look-controls="enabled: false"></a-camera>
 </a-scene>
 
 <script>
   const overlay = document.getElementById('startOverlay');
   const startBtn = document.getElementById('startBtn');
 
-  let audioUnlocked = false;
+  const fsContainer = document.getElementById('videoFullscreen');
+  const fsVideo = document.getElementById('fsVideo');
+  const closeBtn = document.getElementById('closeVideo');
 
+  let audioUnlocked = false;
+  let isPlaying = false;
+
+  let preloadedVideo;
+  let preloadedAudio;
+
+  // ========= CLICK INICIAR =========
   startBtn.addEventListener('click', () => {
     audioUnlocked = true;
     overlay.style.display = 'none';
+
+    // --- Precarga VIDEO ---
+    preloadedVideo = document.createElement('video');
+    preloadedVideo.src = 'videos/video01.mp4';
+    preloadedVideo.preload = 'auto';
+    preloadedVideo.playsInline = true;
+
+    // --- Precarga AUDIO ---
+    preloadedAudio = new Audio('audios/video01.mp3');
+    preloadedAudio.preload = 'auto';
   });
 
+  // ========= TARGET FOUND =========
   document.querySelectorAll('[mindar-image-target]').forEach(target => {
-    const video = document.getElementById(target.dataset.video);
-    const audio = document.getElementById(target.dataset.audio);
-
     target.addEventListener('targetFound', () => {
-      if (!audioUnlocked) return;
-      video.play().catch(() => {});
-      audio.currentTime = 0;
-      audio.play().catch(() => {}); // fuerza la reproduccion del audio, si el video tiene audio también puede sonar un eco
-    });
+      if (!audioUnlocked || isPlaying) return;
 
-    target.addEventListener('targetLost', () => {
-      video.pause();
-      video.currentTime = 0;
-      audio.pause();
-      audio.currentTime = 0;
+      isPlaying = true;
+
+      // Pausa el tracking
+      document
+        .querySelector('a-scene')
+        .systems['mindar-image-system']
+        .pause();
+
+      // Video fullscreen
+      fsVideo.src = preloadedVideo.src;
+      fsContainer.style.display = 'block';
+      fsVideo.currentTime = 0;
+      fsVideo.play().catch(() => {});
+
+      // Audio
+      preloadedAudio.currentTime = 0;
+      preloadedAudio.play().catch(() => {});
     });
   });
+
+  // ========= CIERRE =========
+  function stopVideo() {
+    fsVideo.pause();
+    fsVideo.currentTime = 0;
+    fsContainer.style.display = 'none';
+
+    preloadedAudio.pause();
+    preloadedAudio.currentTime = 0;
+
+    document
+      .querySelector('a-scene')
+      .systems['mindar-image-system']
+      .resume();
+
+    isPlaying = false;
+  }
+
+  fsVideo.addEventListener('ended', stopVideo);
+  closeBtn.addEventListener('click', stopVideo);
 </script>
 
 </body>
